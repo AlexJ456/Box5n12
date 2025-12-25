@@ -87,10 +87,7 @@
         }
 
         .countdown {
-            font-size: 4rem;
-            font-weight: bold;
-            margin-bottom: 2.5rem;
-            color: #ff6b6b;
+            display: none; /* Removed */
         }
 
         .phase-tracker {
@@ -121,19 +118,20 @@
         }
 
         .phase-dot {
-            width: 24px; /* Increased from 12px for prominence */
-            height: 24px; /* Increased from 12px for prominence */
+            width: 24px; /* Bigger */
+            height: 24px; /* Bigger */
             border-radius: 50%;
-            border: 2px solid var(--phase-color, #fde68a);
+            border: 3px solid transparent; /* Glowing border */
             background-color: var(--phase-soft, rgba(253, 230, 138, 0.25));
             box-shadow: 0 0 0 rgba(0, 0, 0, 0);
-            transition: background-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+            transition: background-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
         }
 
         .phase-item.active .phase-dot {
+            border-color: var(--phase-color, #fde68a); /* Prominent border */
             background: radial-gradient(circle, var(--phase-color, #fde68a) 0%, rgba(0, 0, 0, 0) 70%);
-            box-shadow: 0 0 24px var(--phase-color, #fde68a); /* Stronger shadow for prominence */
-            transform: scale(1.2); /* Slightly larger for prominence */
+            box-shadow: 0 0 20px var(--phase-color, #fde68a), inset 0 0 10px rgba(255, 255, 255, 0.2); /* Glow */
+            transform: scale(1.1); /* Slight scale for prominence */
         }
 
         .phase-label {
@@ -204,23 +202,27 @@
 
         button {
             font-size: 1.25rem;
-            padding: 0.75rem 1.5rem; /* Same size as original */
-            background: linear-gradient(135deg, #ea580c, #dc2626); /* Modern gradient */
+            padding: 0.75rem 1.5rem; /* Same size */
+            background: linear-gradient(to bottom, #d97706, #b45309);
             color: black;
             border: none;
-            border-radius: 0.5rem; /* Slightly more rounded for modern feel */
+            border-radius: 0.25rem;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6); /* Stronger, modern shadow */
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(255, 255, 255, 0.1); /* Modernized */
+            transition: box-shadow 0.2s ease, transform 0.1s ease;
         }
 
         button:hover {
-            transform: scale(1.05); /* Subtle hover scale */
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(255, 255, 255, 0.2); /* Deeper shadow */
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
         }
 
         .switch {
@@ -295,6 +297,10 @@
             color: #ffedd5;
         }
 
+        .preset-button:hover {
+            background-color: #78350f;
+        }
+
         .slider-container {
             display: flex;
             flex-direction: column;
@@ -306,48 +312,42 @@
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
-            width: 200px; /* Same width */
-            height: 10px; /* Same height */
-            background: linear-gradient(to right, #451a03, #d97706); /* Modern gradient */
+            width: 200px; /* Same size */
+            height: 10px; /* Same */
+            background: #78350f;
             border-radius: 5px;
             outline: none;
-            transition: background 0.3s ease;
             cursor: pointer;
-        }
-
-        input[type="range"]:hover {
-            background: linear-gradient(to right, #78350f, #ea580c);
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 24px; /* Larger thumb for modern feel */
-            height: 24px; /* Larger thumb for modern feel */
-            background: linear-gradient(135deg, #fcd34d, #f97316); /* Gradient thumb */
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            transition: transform 0.2s ease;
-        }
-
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-        }
-
-        input[type="range"]::-moz-range-track {
-            width: 200px;
-            height: 10px;
-            background: #78350f;
-            border-radius: 5px;
-        }
-
-        input[type="range"]::-moz-range-thumb {
-            width: 24px;
-            height: 24px;
+            width: 20px; /* Same */
+            height: 20px; /* Same */
             background: #d97706;
             border-radius: 50%;
             cursor: pointer;
+            box-shadow: 0 0 8px rgba(217, 119, 6, 0.6); /* Glow effect */
+            border: 2px solid white;
+        }
+
+        input[type="range"]::-moz-range-track {
+            width: 200px; /* Same */
+            height: 10px; /* Same */
+            background: #78350f;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px; /* Same */
+            height: 20px; /* Same */
+            background: #d97706;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(217, 119, 6, 0.6); /* Glow */
+            border: 2px solid white;
         }
 
         @media (max-width: 480px) {
@@ -358,25 +358,21 @@
 
             .instruction {
                 font-size: 1.8rem;
-                margin-bottom: 1.75rem;
             }
 
             .countdown {
-                font-size: 3.5rem;
-                margin-bottom: 2rem;
+                display: none;
             }
 
             .phase-tracker {
                 gap: 1.1rem;
-                margin-bottom: 1.5rem;
             }
         }
 
         @media (prefers-reduced-motion: reduce) {
             button,
             .slider,
-            input[type="range"],
-            .phase-item .phase-dot {
+            input[type="range"] {
                 transition-duration: 0.01ms !important;
                 animation-duration: 0.01ms !important;
             }
@@ -385,7 +381,7 @@
 </head>
 <body>
     <!-- Offline notification div -->
-    <div id="offline-notification" style="display: none;">You are offline, but the app will work normally</div>
+    <div id="offline-notification">You are offline, but the app will work normally</div>
 
     <div class="container">
         <div id="app-content"></div>
