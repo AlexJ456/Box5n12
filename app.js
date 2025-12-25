@@ -1,3 +1,4 @@
+```javascript
 document.addEventListener('DOMContentLoaded', () => {
     const app = document.getElementById('app-content');
     const canvas = document.getElementById('box-canvas');
@@ -31,10 +32,26 @@ document.addEventListener('DOMContentLoaded', () => {
     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
     const offlineNotification = document.getElementById('offline-notification');
+    let hideTimeout = null;
 
     function updateOnlineStatus() {
         if (offlineNotification) {
-            offlineNotification.style.display = !navigator.onLine ? 'block' : 'none';
+            if (navigator.onLine) {
+                offlineNotification.style.display = 'none';
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout);
+                    hideTimeout = null;
+                }
+            } else {
+                offlineNotification.style.display = 'block';
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout);
+                }
+                hideTimeout = setTimeout(() => {
+                    offlineNotification.style.display = 'none';
+                    hideTimeout = null;
+                }, 5000);
+            }
         }
     }
 
@@ -539,3 +556,4 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
     resizeCanvas();
 });
+```
