@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const app = document.getElementById('app-content');
     const canvas = document.getElementById('box-canvas');
     const ctx = canvas ? canvas.getContext('2d') : null;
-    const offlineNotification = document.getElementById('offline-notification');
     if (!app || !canvas || !ctx) {
         return;
     }
@@ -31,21 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let wakeLock = null;
     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-    // Offline notification handling
-    function updateOfflineStatus() {
-        const isOnline = navigator.onLine;
-        offlineNotification.style.display = isOnline ? 'none' : 'block';
-    }
-    window.addEventListener('online', updateOfflineStatus);
-    window.addEventListener('offline', updateOfflineStatus);
-    updateOfflineStatus(); // Initial check
-
     const icons = {
         play: `<svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
         pause: `<svg class="icon" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`,
         volume2: `<svg class="icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`,
         volumeX: `<svg class="icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`,
-        rotateCcw: `<svg class="icon" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>`,
+        rotateCcw: `<svg class="icon" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></polyline>`,
         clock: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`
     };
 
@@ -137,36 +127,29 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
-    function playTone(phase = 0) {
+    function playTone(phase = state.count) {
         if (state.soundEnabled && audioContext) {
             try {
-                const oscillator = audioContext.createOscillator();
+                // Improved sound: Layered oscillators for richer, more pleasant tone + phase variation
+                const baseFreq = 440 + (phase * 50); // Slight variation per phase
+                const oscillator1 = audioContext.createOscillator();
+                oscillator1.type = 'sawtooth'; // Gentler wave for softer sound
+                oscillator1.frequency.setValueAtTime(baseFreq, audioContext.currentTime);
+                const oscillator2 = audioContext.createOscillator();
+                oscillator2.type = 'sawtooth';
+                oscillator2.frequency.setValueAtTime(baseFreq * 1.5, audioContext.currentTime); // Overtone for richness
                 const gainNode = audioContext.createGain();
-                oscillator.connect(gainNode);
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime); // Softer volume
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3); // Fade out
+                oscillator1.connect(gainNode);
+                oscillator2.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                oscillator.type = 'sine';
-                const now = audioContext.currentTime;
-                const duration = 0.5; // Nice, longer tone
-                gainNode.gain.setValueAtTime(0, now);
-                gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05); // Quick attack
-                gainNode.gain.linearRampToValueAtTime(0, now + duration); // Fade out
-                // Phase-specific frequencies with ramps
-                if (phase === 0) { // Inhale: rising
-                    oscillator.frequency.setValueAtTime(300, now);
-                    oscillator.frequency.linearRampToValueAtTime(600, now + duration);
-                } else if (phase === 1) { // Hold: low steady
-                    oscillator.frequency.setValueAtTime(200, now);
-                } else if (phase === 2) { // Exhale: falling
-                    oscillator.frequency.setValueAtTime(600, now);
-                    oscillator.frequency.linearRampToValueAtTime(300, now + duration);
-                } else { // Wait: pulsing low
-                    oscillator.frequency.setValueAtTime(250, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(250, now + duration * 0.8);
-                }
-                oscillator.start(now);
-                oscillator.stop(now + duration);
+                oscillator1.start(audioContext.currentTime);
+                oscillator2.start(audioContext.currentTime);
+                oscillator1.stop(audioContext.currentTime + 0.3);
+                oscillator2.stop(audioContext.currentTime + 0.3);
             } catch (e) {
-                console.error('Error playing tone:', e);
+                console.error('Error playing improved tone:', e);
             }
         }
     }
@@ -216,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.sessionComplete = false;
             state.timeLimitReached = false;
             state.pulseStartTime = performance.now();
-            playTone(state.count);
+            playTone();
             startInterval();
             animate();
             requestWakeLock();
@@ -279,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('AudioContext resumed');
             });
         }
-        playTone(state.count);
+        playTone();
         startInterval();
         animate();
         requestWakeLock();
@@ -301,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.count = (state.count + 1) % 4;
                 state.pulseStartTime = performance.now();
                 state.countdown = state.phaseTime;
-                playTone(state.count);
+                playTone(); // Updated sound
                 if (state.count === 3 && state.timeLimitReached) {
                     state.sessionComplete = true;
                     state.isPlaying = false;
@@ -331,135 +314,50 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.save();
         ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
-        ctx.clearRect(0, 0, width, height);
-
-        if (!state.hasStarted && !state.sessionComplete) {
-            invalidateGradient();
-            ctx.restore();
-            return;
-        }
-
-        const clampedProgress = Math.max(0, Math.min(1, progress));
-        const easedProgress = 0.5 - (Math.cos(Math.PI * clampedProgress) / 2);
-        const baseSize = Math.min(width, height) * 0.6;
-        const topMargin = 20;
-        const sizeWithoutBreath = Math.min(baseSize, height - topMargin * 2);
-        const verticalOffset = Math.min(height * 0.18, 110);
-        const preferredTop = height / 2 + verticalOffset - sizeWithoutBreath / 2;
-        const top = Math.max(topMargin, Math.min(preferredTop, height - sizeWithoutBreath - topMargin));
-        const left = (width - sizeWithoutBreath) / 2;
-
-        const now = timestamp;
-        const allowMotion = !state.prefersReducedMotion;
-        let breathInfluence = 0;
-        if (phase === 0) {
-            breathInfluence = easedProgress;
-        } else if (phase === 2) {
-            breathInfluence = 1 - easedProgress;
-        } else if (allowMotion) {
-            breathInfluence = 0.3 + 0.2 * (0.5 + 0.5 * Math.sin(now / 350));
+        // Only draw background gradient when not playing (exercise page now shows dots instead)
+        if (!state.isPlaying) {
+            ctx.clearRect(0, 0, width, height);
+            const gradient = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) / 2);
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
         } else {
-            breathInfluence = 0.3;
+            // Exercise page: Draw a subtle background for dots, no animation
+            ctx.clearRect(0, 0, width, height);
+            const bgGradient = ctx.createLinearGradient(0, 0, width, height);
+            bgGradient.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
+            bgGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, width, height);
         }
-
-        let pulseBoost = 0;
-        if (allowMotion && state.pulseStartTime !== null) {
-            const pulseElapsed = (now - state.pulseStartTime) / 1000;
-            if (pulseElapsed < 0.6) {
-                pulseBoost = Math.sin((pulseElapsed / 0.6) * Math.PI);
-            }
-        }
-
-        const size = sizeWithoutBreath * (1 + 0.08 * breathInfluence + 0.03 * pulseBoost);
-        const adjustedLeft = left + (sizeWithoutBreath - size) / 2;
-        const adjustedTop = top + (sizeWithoutBreath - size) / 2;
-        const points = [
-            { x: adjustedLeft, y: adjustedTop + size },
-            { x: adjustedLeft, y: adjustedTop },
-            { x: adjustedLeft + size, y: adjustedTop },
-            { x: adjustedLeft + size, y: adjustedTop + size }
-        ];
-        const startPoint = points[phase];
-        const endPoint = points[(phase + 1) % 4];
-        const currentX = startPoint.x + easedProgress * (endPoint.x - startPoint.x);
-        const currentY = startPoint.y + easedProgress * (endPoint.y - startPoint.y);
-
-        const accentColor = phaseColors[phase] || '#f97316';
-        const shouldShowTrail = allowMotion && showTrail;
-
-        const gradientKey = `${Math.round(size * 100)}-${accentColor}-${Math.round(adjustedLeft)}-${Math.round(adjustedTop)}`;
-        if (!cachedGradient || cachedGradientKey !== gradientKey) {
-            cachedGradient = ctx.createRadialGradient(
-                adjustedLeft + size / 2,
-                adjustedTop + size / 2,
-                size * 0.2,
-                adjustedLeft + size / 2,
-                adjustedTop + size / 2,
-                size
-            );
-            cachedGradient.addColorStop(0, hexToRgba(accentColor, 0.18));
-            cachedGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            cachedGradientKey = gradientKey;
-        }
-        ctx.fillStyle = cachedGradient;
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.strokeStyle = hexToRgba('#fcd34d', 0.25);
-        ctx.lineWidth = Math.max(2, size * 0.015);
-        ctx.lineJoin = 'round';
-        ctx.strokeRect(adjustedLeft, adjustedTop, size, size);
-
-        ctx.lineWidth = Math.max(4, size * 0.03);
-        ctx.strokeStyle = hexToRgba(accentColor, shouldShowTrail ? 0.8 : 0.45);
-        ctx.shadowColor = hexToRgba(accentColor, 0.5);
-        ctx.shadowBlur = shouldShowTrail ? 15 : 8;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i <= phase; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-        }
-        if (shouldShowTrail) {
-            ctx.lineTo(currentX, currentY);
-        }
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-
-        const baseRadius = Math.max(8, size * 0.04);
-        let radius = baseRadius * (1 + 0.35 * breathInfluence + 0.25 * pulseBoost);
-        if (allowMotion && (phase === 1 || phase === 3)) {
-            radius += baseRadius * 0.12 * (0.5 + 0.5 * Math.sin(now / 200));
-        }
-
-        ctx.beginPath();
-        ctx.arc(currentX, currentY, radius * 1.8, 0, 2 * Math.PI);
-        ctx.fillStyle = hexToRgba(accentColor, 0.25);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(currentX, currentY, radius, 0, 2 * Math.PI);
-        ctx.fillStyle = accentColor;
-        ctx.fill();
 
         ctx.restore();
     }
 
     function updateCanvasVisibility() {
-        const shouldShow = state.sessionComplete; // Only show canvas when session complete, not during exercise
+        const shouldShow = state.isPlaying || state.sessionComplete;
         canvas.classList.toggle('is-visible', shouldShow);
     }
 
     function animate() {
         if (!state.isPlaying) return;
-        const now = performance.now();
-        const elapsed = (now - lastStateUpdate) / 1000;
-        const effectiveCountdown = state.countdown - elapsed;
-        let progress = (state.phaseTime - effectiveCountdown) / state.phaseTime;
-        progress = Math.max(0, Math.min(1, progress));
-
-        drawScene({ progress, timestamp: now });
-
+        // No animation during exercise (box removed)
         animationFrameId = requestAnimationFrame(animate);
     }
+
+    // Offline notification handling
+    const offlineNotification = document.getElementById('offline-notification');
+    function handleOnlineStatus() {
+        if (navigator.onLine) {
+            offlineNotification.style.display = 'none';
+        } else {
+            offlineNotification.style.display = 'block';
+        }
+    }
+    window.addEventListener('online', handleOnlineStatus);
+    window.addEventListener('offline', handleOnlineStatus);
+    handleOnlineStatus(); // Initial check
 
     function render() {
         let html = `
