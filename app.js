@@ -1,4 +1,3 @@
-```javascript
 document.addEventListener('DOMContentLoaded', () => {
     const app = document.getElementById('app-content');
     const canvas = document.getElementById('box-canvas');
@@ -556,4 +555,3 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
     resizeCanvas();
 });
-```
