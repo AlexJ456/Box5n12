@@ -174,7 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    let interval;
     let animationFrameId;
     let lastStateUpdate;
 
@@ -219,12 +218,10 @@ document.addEventListener('DOMContentLoaded', () => {
             state.sessionComplete = false;
             state.timeLimitReached = false;
             state.pulseStartTime = performance.now();
+            lastStateUpdate = performance.now(); // Initialize lastStateUpdate
             playTone();
-            startInterval();
-            animate();
             requestWakeLock();
         } else {
-            clearInterval(interval);
             cancelAnimationFrame(animationFrameId);
             state.totalTime = 0;
             state.countdown = state.phaseTime;
@@ -250,7 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
         state.timeLimitReached = false;
         state.pulseStartTime = null;
         state.hasStarted = false;
-        clearInterval(interval);
         cancelAnimationFrame(animationFrameId);
         invalidateGradient();
         drawScene({ progress: 0, showTrail: false, phase: state.count });
@@ -277,49 +273,57 @@ document.addEventListener('DOMContentLoaded', () => {
         state.timeLimitReached = false;
         state.pulseStartTime = performance.now();
         state.hasStarted = true;
+        lastStateUpdate = performance.now(); // Initialize lastStateUpdate
         if (audioContext && audioContext.state === 'suspended') {
             audioContext.resume().then(() => {
                 console.log('AudioContext resumed');
             });
         }
         playTone();
-        startInterval();
-        animate();
         requestWakeLock();
         render();
     }
 
-    function startInterval() {
-        clearInterval(interval);
-        lastStateUpdate = performance.now();
-        interval = setInterval(() => {
-            state.totalTime += 1;
-            if (state.timeLimit && !state.timeLimitReached) {
-                const timeLimitSeconds = parseInt(state.timeLimit) * 60;
-                if (state.totalTime >= timeLimitSeconds) {
-                    state.timeLimitReached = true;
-                }
+    // New elapsed-time scheduler using requestAnimationFrame
+    function scheduleTick() {
+        if (!state.isPlaying) return;
+        const now = performance.now();
+        // Fallback to Date.now() if performance.now() fails (rare)
+        const currentTime = now || Date.now();
+        const delta = (currentTime - lastStateUpdate) / 1000; // Delta in seconds
+        // Accumulate elapsed time
+        state.totalTime += delta;
+        state.countdown -= delta;
+        lastStateUpdate = currentTime;
+
+        // Check time limit
+        if (state.timeLimit && !state.timeLimitReached) {
+            const timeLimitSeconds = parseInt(state.timeLimit) * 60;
+            if (state.totalTime >= timeLimitSeconds) {
+                state.timeLimitReached = true;
             }
-            if (state.countdown === 1) {
-                state.count = (state.count + 1) % 4;
-                state.pulseStartTime = performance.now();
-                state.countdown = state.phaseTime;
-                playTone();
-                if (state.count === 3 && state.timeLimitReached) {
-                    state.sessionComplete = true;
-                    state.isPlaying = false;
-                    state.hasStarted = false;
-                    clearInterval(interval);
-                    cancelAnimationFrame(animationFrameId);
-                    releaseWakeLock();
-                }
-            } else {
-                state.countdown -= 1;
+        }
+
+        // Handle countdown and phase advancement
+        if (state.countdown <= 0) {
+            state.count = (state.count + 1) % 4;
+            state.pulseStartTime = currentTime;
+            state.countdown = state.phaseTime; // Reset countdown to phase time
+            playTone();
+            if (state.count === 3 && state.timeLimitReached) {
+                state.sessionComplete = true;
+                state.isPlaying = false;
+                state.hasStarted = false;
+                releaseWakeLock();
             }
-            lastStateUpdate = performance.now();
-            render();
-        }, 1000);
+        }
+
+        render();
+        // Self-adjusting scheduler: requestAnimationFrame for next tick
+        animationFrameId = requestAnimationFrame(scheduleTick);
     }
+
+    state.isPlaying && !animationFrameId ? animationFrameId = requestAnimationFrame(scheduleTick) : null; // Start scheduling
 
     function drawScene({ progress = 0, phase = state.count, showTrail = state.isPlaying, timestamp = performance.now() } = {}) {
         if (!ctx) return;
@@ -425,6 +429,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         animationFrameId = requestAnimationFrame(animate);
     }
+
+    state.isPlaying && !animationFrameId ? animationFrameId = requestAnimationFrame(animate) : null; // Start animation if playing
 
     function render() {
         let html = `
